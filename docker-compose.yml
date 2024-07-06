@@ -10,7 +10,8 @@ services:
   #
   lms:
     restart: unless-stopped
-    image: justifiably/logitechmediaserver
+    image: lmscommunity/logitechmediaserver
+    network_mode: host
     hostname: newsounds
     ports:
       - "9000:9000"
@@ -18,6 +19,9 @@ services:
       - "3483:3483"
       - "3483:3483/udp"
       - "1900:1900"
+      - "1900:1900/udp"
+    environment:
+      TZ: "America/Los_Angeles"
     volumes:
       #
       # Use the music files stored in the users Music 
@@ -28,11 +32,13 @@ services:
       # use flac? How to handle crap we only have in MP3? IIRC, we already
       # can configure LMS to only pay attention to flac if there's a pair...
       # how does it decide on equivalence?
+      # 
+      # I've moved the LMS/config directory out of Music so it can't
+      # confuse the music scanner, but it really shouldn't matter.
       #
-      - /home/${USER}/Music:/mnt/music:ro
-      - /home/${USER}/Music/playlists:/mnt/playlists
-      - /home/${USER}/Music/state:/mnt/state
-      
+      - /home/${USER}/Music:/music:ro
+      - /home/${USER}/Music/playlists:/playlists:rw
+      - /home/${USER}/MusicLMS/config:/config:rw
       
   #
   # A media player on the local machine that LMS will find and
@@ -109,75 +115,63 @@ services:
   # Periodically scans the /flac directory for flac
   # files that don't exist in the target format directories.
   #
-  flac_mirror:
-    restart: unless-stopped
-    user: 1000:1000 # Should run as same user as ripper
-    build:
-        context: ./flac-mirror
-    environment: 
-      # 
-      # A comma separated list of what formats to mirror to.  
-      # NOTE: make sure that there is an appropriate volume mapped 
-      # for the file type to somewhere outside the container otherwise the
-      # mirrored files will be created inside the container where
-      # no one will be able to see them!
-      # 
-      # Formats must be capitalized. Current possibilities are
-      #   M4A
-      #   MP3
-      #   OGG
-      #
-      #- MIRROR=M4A
-      - MIRROR=MP3
-      #
-      # ffmpeg mirroring options that can be over-ridden
-      #
-      # - M4A_OPTIONS=-c:a aac -b:a 192k -vn
-      # - MP3_OPTIONS=-c:a mp3 -ab 192k -map_metadata 0
-      # - OGG_OPTIONS=-c:a libvorbis
-    volumes:
-      - /home/${USER}/Music/flac:/flac:ro
-      - /home/${USER}/Music/mp3:/mp3:rw
-      - /home/${USER}/Music/m4a:/m4a:rw
-      - /home/${USER}/Music/ogg:/ogg:rw
+#  flac_mirror:
+#    restart: unless-stopped
+#    user: 1000:1000 # Should run as same user as ripper
+#    build:
+#        context: ./flac-mirror
+#    environment: 
+#      # 
+#      # A comma separated list of what formats to mirror to.  
+#      # NOTE: make sure that there is an appropriate volume mapped 
+#      # for the file type to somewhere outside the container otherwise the
+#      # mirrored files will be created inside the container where
+#      # no one will be able to see them!
+#      # 
+#      # Formats must be capitalized. Current possibilities are
+#      #   M4A
+#      #   MP3
+#      #   OGG
+#      #
+#      #- MIRROR=M4A
+#      - MIRROR=MP3
+#      #
+#      # ffmpeg mirroring options that can be over-ridden
+#      #
+#      # - M4A_OPTIONS=-c:a aac -b:a 192k -vn
+#      # - MP3_OPTIONS=-c:a mp3 -ab 192k -map_metadata 0
+#      # - OGG_OPTIONS=-c:a libvorbis
+#    volumes:
+#      - /home/${USER}/Music/flac:/flac:ro
+#      - /home/${USER}/Music/mp3:/mp3:rw
+#      - /home/${USER}/Music/m4a:/m4a:rw
+#      - /home/${USER}/Music/ogg:/ogg:rw
  
   # 
   # Allow read/write access to music from around my personal network
   # If I'm clever, it'll only allow writes to flac/ 
   # 
-  samba:
-    image: servercontainers/samba
-    restart: unless-stopped
-    network_mode: host
-    # uncomment to solve bug: https://github.com/ServerContainers/samba/issues/50 - wsdd2 only - not needed for samba
-    cap_add:
-      - CAP_NET_ADMIN
-    environment:
-      MODEL: 'TimeCapsule'
-      AVAHI_NAME: Music
-
-      SAMBA_CONF_WORKGROUP: workgroup
-      SAMBA_CONF_LOG_LEVEL: 3
-
-      # uncomment to disable optional services
-      #WSDD2_DISABLE: 1
-      #AVAHI_DISABLE: 1
-
-      GROUP_music: 1000
-
-#      ACCOUNT_alice: ${ALICE_SAMBA_PASS}
-#      UID_alice: 1000
-#      GROUPS_alice: music
+#  samba:
+#    image: servercontainers/samba
+#    restart: unless-stopped
+#    network_mode: host
+#    # uncomment to solve bug: https://github.com/ServerContainers/samba/issues/50 - wsdd2 only - not needed for samba
+#    cap_add:
+#      - CAP_NET_ADMIN
+#    environment:
+#      MODEL: 'Macmini'
+#      AVAHI_NAME: newsounds
+#      WSDD2_DISABLE: 1
+#      SAMBA_CONF_LOG_LEVEL: 4
+#      SAMBA_CONF_SERVER_STRING: newsounds
 #
-#      ACCOUNT_bob: ${BOB_SAMBA_PASS}
-#      UID_bob: 1001
-#      GROUPS_bob: music
-
-      # SAMBA_VOLUME_CONFIG_music: "[Music Editing]; path=/shares/Music; valid users = alice, bob; guest ok = no; read only = no; browseable = yes; force group = music"
-      SAMBA_VOLUME_CONFIG_music_ro: "[Music]; path=/home/shares/Music; guest ok = yes; read only = yes; browseable = yes; force group = music"
-      
-    volumes:
-      - /etc/avahi/services/:/external/avahi
-      # avoid loops
-      #
-      - ./home/${USER}/Music:/shares/Music
+##     GROUP_music: 1000
+##      ACCOUNT_rick: "rick:1000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:7058B80AD347765B374D396D4C46B975:[U          ]:LCT-62F9AD4E:"
+##      UID_rick: 1000
+##      GROUPS_rick: music
+##      SAMBA_VOLUME_CONFIG_music: "[Music Editing]; path=/home/shares/Music; valid users = rick; guest ok = no; read only = no; browseable = yes; force group = music"
+##
+#      SAMBA_VOLUME_CONFIG_music_ro: "[Music]; path=/home/shares/Music; guest ok = yes; read only = yes; browseable = yes; force group = music"
+#      
+#    volumes:
+#      - /home/${USER}/Music:/home/shares/Music
