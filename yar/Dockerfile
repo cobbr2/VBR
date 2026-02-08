@@ -1,7 +1,8 @@
 #
 # Use the latest ubuntu, which is currently 20.04
 #
-FROM ubuntu:latest
+# Testing with upgrade to last-known-good
+FROM ubuntu:24.04
 MAINTAINER 48clyde
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -9,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Get the required extras and clean up
 #
 RUN apt-get update -y && \
-  apt-get install -qy abcde cdparanoia eject flac netcat setcd sdparm eyed3 lame cd-discid && \
+  apt-get install -qy abcde cdparanoia eject flac netcat-openbsd setcd sdparm eyed3 lame cd-discid && \
   apt-get remove -qy postfix && \
   apt-get -qy clean && \
   apt-get -qy purge && \
