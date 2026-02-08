@@ -74,6 +74,7 @@ def check_mirror_status(flac_file, mirror_format):
             # Set the permissions of the newly mirrored file to be the same as the 
             # flac file.
             #
+            # Docker setup currently doesn't give the use permission to do this.
             os.chown(mirror_file_name, os.stat(flac_file).st_uid, os.stat(flac_file).st_gid)
             perms = os.stat(flac_file).st_mode & 0o777
             os.chmod(mirror_file_name, perms)
@@ -89,6 +90,14 @@ def check_mirror_status(flac_file, mirror_format):
             
     else:
         return 'EXISTS'
+
+#
+# Mark a directory as sync'ed. Probably should avoid doing it more than once,
+# but MVP.
+#
+def mark_directory_synced(mirror_dir_name)
+    with open(join([mirror_dir_name, '_synced'],'/') , 'w') as file:
+        file.write(datetime.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)"))
 
 #
 # Scan the FLAC_DIR looking for flac files to mirror.
