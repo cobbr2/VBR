@@ -1,0 +1,2 @@
+# Map macOS/Windows GUEST to container user guest
+GUEST = guest
