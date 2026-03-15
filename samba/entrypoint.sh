@@ -10,4 +10,4 @@ chmod a+rx /music 2>/dev/null || true
 printf '\n\n' | smbpasswd -a -s GUEST 2>/dev/null || \
   printf "guest\nguest\n" | smbpasswd -a -s GUEST 2>/dev/null || true
 nmbd --daemon --no-process-group --configfile=/etc/samba/smb.conf
-exec smbd --foreground --no-process-group --debug-stdout --debuglevel=2 --configfile=/etc/samba/smb.conf
+exec smbd --foreground --no-process-group --debug-stdout --debuglevel=3 --configfile=/etc/samba/smb.conf

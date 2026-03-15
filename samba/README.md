@@ -19,4 +19,6 @@ Then bring up the stack (or just the samba service):
 docker compose up -d samba
 ```
 
+**"Share does not exist" after auth:** GUEST must be able to traverse the share path. On the host: `chmod o+rx /home/rec/Music`. Then check: `docker exec vbr-samba-1 runuser -u GUEST -- ls /music` and `docker exec vbr-samba-1 smbclient //localhost/music -U 'GUEST%' -c "ls"`. If either fails, fix host permissions.
+
 Connect from a Mac: `smb://newsounds/music` (or the host’s hostname if different).
