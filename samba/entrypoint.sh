@@ -4,6 +4,8 @@
 set -e
 # Ensure mount point exists so [music] share always has a valid path
 mkdir -p /music
+# So GUEST can tree-connect to the share, ensure path is traversable
+chmod a+rx /music 2>/dev/null || true
 # Add GUEST to Samba passdb (empty password so Mac "Guest" with no password works)
 printf '\n\n' | smbpasswd -a -s GUEST 2>/dev/null || \
   printf "guest\nguest\n" | smbpasswd -a -s GUEST 2>/dev/null || true
