@@ -71,13 +71,9 @@ services:
   # Note, need to give the ripper container access to the
   # CDROM device and then tell it what device to use.
   #
-  # USER_ID and GROUP_ID are used to set the ripped file 
-  # owner:group rather than the default root:root of the
-  # ripper process.  This has to be specified as the id's and 
-  # not as names because within the container the user names 
-  # and group names don't exist.  By default Ubuntu uses 1000
-  # as the first user ID allocated, but use the 'id' command 
-  # to confirm the correct id's to use.
+  # Ripper runs as root so it can read the CD device (/dev/sr0). abcde post_encode
+  # chowns ripped files to USER_ID:GROUP_ID (1000:1000 = rec on host) so Samba
+  # and Mac clients (e.g. Picard) can read/write/delete without a separate chown.
   #
   # The LMS_HOST (i.e the service name above) and LMS_PORT are 
   # used by the ripper to be able to contact LMS and tell it 
@@ -93,8 +89,8 @@ services:
         context: ./yar
     environment: 
       - CDROM=/dev/sr0
-      - USER_ID=${USER} # postencode wants to add by name (useradd and groupadd). Hmm.
-      - GROUP_ID=${USER} # Using ubuntu convention, since this goes to groupadd. Also hmm.
+      - USER_ID=1000
+      - GROUP_ID=1000
       - LMS_HOST=lms
       - LMS_CLI_PORT=9090
     volumes:
@@ -108,6 +104,27 @@ services:
   #
   # Periodically scans the /flac directory for flac
   # files that don't exist in the target format directories.
+  #
+  #
+  # Samba: Music share for Mac/Windows clients (e.g. Picard). Uses same
+  # Music dir as LMS/ripper; force user 1000 so files are owned by rec on host.
+  #
+  samba:
+    restart: unless-stopped
+    build:
+      context: ./samba
+    ports:
+      - "139:139"
+      - "445:445"
+      - "137:137/udp"
+      - "138:138/udp"
+    volumes:
+      - /home/${USER}/Music:/music:rw
+    # Optional: match hostname so SMB appears as same host as LMS
+    hostname: newsounds
+
+  #
+  # Mirror flac files to the spcified formats.
   #
   flac_mirror:
     restart: unless-stopped
