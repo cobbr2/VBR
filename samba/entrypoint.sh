@@ -9,5 +9,7 @@ chmod a+rx /music 2>/dev/null || true
 # Add GUEST to Samba passdb (empty password so Mac "Guest" with no password works)
 printf '\n\n' | smbpasswd -a -s GUEST 2>/dev/null || \
   printf "guest\nguest\n" | smbpasswd -a -s GUEST 2>/dev/null || true
+# Create domain SID so "Failed to fetch domain sid" is fixed and tree connect works
+net setdomainsid S-1-5-21-1-1-1 -s /etc/samba/smb.conf 2>/dev/null || true
 nmbd --daemon --no-process-group --configfile=/etc/samba/smb.conf
 exec smbd --foreground --no-process-group --debug-stdout --debuglevel=3 --configfile=/etc/samba/smb.conf
