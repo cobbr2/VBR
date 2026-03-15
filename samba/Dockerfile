@@ -7,8 +7,10 @@ RUN apt-get update -y && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Dirs required by smb.conf (printers/print$ and logs). /music is the mount point.
+# GUEST must exist as system user so passdb entry has a Unix user
 RUN mkdir -p /var/spool/samba /var/lib/samba/printers /var/log/samba /music && \
-    chmod 1777 /var/spool/samba
+    chmod 1777 /var/spool/samba && \
+    useradd -r -s /bin/false -d /nonexistent GUEST
 
 COPY smb.conf /etc/samba/smb.conf
 COPY entrypoint.sh /entrypoint.sh
