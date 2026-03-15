@@ -3,11 +3,11 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends samba && \
+    apt-get install -y --no-install-recommends samba smbclient && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Dirs required by smb.conf (printers/print$ and logs)
-RUN mkdir -p /var/spool/samba /var/lib/samba/printers /var/log/samba && \
+# Dirs required by smb.conf (printers/print$ and logs). /music is the mount point.
+RUN mkdir -p /var/spool/samba /var/lib/samba/printers /var/log/samba /music && \
     chmod 1777 /var/spool/samba
 
 COPY smb.conf /etc/samba/smb.conf
