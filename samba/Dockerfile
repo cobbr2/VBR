@@ -1,5 +1,7 @@
 # Samba in container for VBR Music share. Uses full Samba (incl. vfs_fruit) for macOS.
-FROM ubuntu:22.04
+# Use Debian Bullseye: Samba 4.15.13 (Ubuntu 22.04) has regression Bug #2009858 (tree connect
+# NT_STATUS_NO_SUCH_USER). Bullseye has 4.13.x which works.
+FROM debian:bullseye-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -y && \
