@@ -2,7 +2,9 @@
 
 - **SSH:** You can ssh to `newsounds` (or, when needed, `sounds`) directly without a password to check docker status and run commands.
 
-- **Workflow:** We use branches for new features. Once a feature works, we merge to master.
+- **Where we run things:** We do **not** run the stack locally. We keep the source here and use **newsounds for all testing** (deploy there, run `docker compose` there, verify there).
+
+- **Workflow:** We keep the source in this repo and make changes via **GitHub pushes and branches**. When we start a new effort (e.g. a bug fix or feature), we start a new branch for it. Once it works on newsounds, we merge to master.
 
 - **Target client:** The Mac we need to connect is the highest priority: **rick-laptop24**. It runs Tahoe 26.3.1 and is M2-based.
 

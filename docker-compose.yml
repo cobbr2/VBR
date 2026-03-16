@@ -100,31 +100,10 @@ services:
       
 
   #
-  # Mirror flac files to the spcified formats.
+  # Mirror flac files to the specified formats.
   #
   # Periodically scans the /flac directory for flac
   # files that don't exist in the target format directories.
-  #
-  #
-  # Samba: Music share for Mac/Windows clients (e.g. Picard). Uses same
-  # Music dir as LMS/ripper; force user 1000 so files are owned by rec on host.
-  #
-  samba:
-    restart: unless-stopped
-    build:
-      context: ./samba
-    ports:
-      - "139:139"
-      - "445:445"
-      - "137:137/udp"
-      - "138:138/udp"
-    volumes:
-      - /home/${USER}/Music:/music:rw
-    # Optional: match hostname so SMB appears as same host as LMS
-    hostname: newsounds
-
-  #
-  # Mirror flac files to the spcified formats.
   #
   flac_mirror:
     restart: unless-stopped
