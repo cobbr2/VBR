@@ -154,7 +154,8 @@ services:
       - "137:137/udp"
       - "138:138/udp"
     environment:
-      - ACCOUNT_GUEST=999:guest
+      # Match host: guest account is default nobody; add to passdb so tree connect finds session user
+      - ACCOUNT_nobody=65534:guest
     volumes:
       - ./samba/smb.conf:/etc/samba/smb.conf:ro
       - /home/${USER}/Music:/music:rw
