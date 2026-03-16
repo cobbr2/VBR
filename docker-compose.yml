@@ -145,20 +145,23 @@ services:
   # Music dir as LMS/ripper; force user 1000 so files are owned by rec on host.
   # Using mbentley/samba image (Docker-optimized) to test if it avoids tree-connect failure.
   #
-  samba:
-    restart: unless-stopped
-    image: mbentley/samba:latest
-    ports:
-      - "139:139"
-      - "445:445"
-      - "137:137/udp"
-      - "138:138/udp"
-    environment:
-      # Match host: guest account is default nobody; add to passdb so tree connect finds session user
-      - ACCOUNT_nobody=65534:guest
-    volumes:
-      - ./samba/smb.conf:/etc/samba/smb.conf:ro
-      - /home/${USER}/Music:/music:rw
-    tmpfs:
-      - /run/samba
-    hostname: newsounds
+  # It didn't.  See samba/README.md ; 3 hours of work w/ Cursor did not get a running
+  # version.
+  #
+  # samba:
+  #   restart: unless-stopped
+  #   image: mbentley/samba:latest
+  #   ports:
+  #     - "139:139"
+  #     - "445:445"
+  #     - "137:137/udp"
+  #     - "138:138/udp"
+  #   environment:
+  #     # Match host: guest account is default nobody; add to passdb so tree connect finds session user
+  #     - ACCOUNT_nobody=65534:guest
+  #   volumes:
+  #     - ./samba/smb.conf:/etc/samba/smb.conf:ro
+  #     - /home/${USER}/Music:/music:rw
+  #   tmpfs:
+  #     - /run/samba
+  #   hostname: newsounds

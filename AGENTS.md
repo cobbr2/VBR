@@ -6,6 +6,6 @@
 
 - **Target client:** The Mac we need to connect is the highest priority: **rick-laptop24**. It runs Tahoe 26.3.1 and is M2-based.
 
-- **Reference config:** The settings in `host_samba/` were successful in letting the Mac (rick-laptop24) edit files in the Music tree when Samba ran on the host. Use that config as the reference for getting the containerized Samba to behave the same way.
+- **Reference config:** The settings in `host_samba/` were successful in letting the Mac (rick-laptop24) edit files in the Music tree when Samba ran on the host.
 
-- Printers are not necessary in the Samba configuration; all the printers in this network are independently networked.
+- **Samba in Docker:** Containerized Samba (custom or mbentley image) currently fails with NT_STATUS_NO_SUCH_USER on tree connect (auth succeeds). Use **host Samba** with `host_samba/smb.conf` as the working approach until that is resolved. See `samba/README.md`.
