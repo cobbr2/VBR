@@ -1,0 +1,24 @@
+# Samba in container for VBR Music share. Uses full Samba (incl. vfs_fruit) for macOS.
+# Use Debian Bullseye: Samba 4.15.13 (Ubuntu 22.04) has regression Bug #2009858 (tree connect
+# NT_STATUS_NO_SUCH_USER). Bullseye has 4.13.x which works.
+FROM debian:bullseye-slim
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends samba smbclient && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Dirs required by smb.conf (printers/print$ and logs). /music is the mount point.
+# GUEST must exist as system user so passdb entry has a Unix user
+RUN mkdir -p /var/spool/samba /var/lib/samba/printers /var/log/samba /music && \
+    chmod 1777 /var/spool/samba && \
+    useradd -r -s /bin/false -d /nonexistent GUEST
+
+COPY smb.conf /etc/samba/smb.conf
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 139 445
+EXPOSE 137/udp 138/udp
+
+ENTRYPOINT ["/entrypoint.sh"]
