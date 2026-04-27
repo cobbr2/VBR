@@ -1,0 +1,16 @@
+version: '3'
+services:
+  # Test override: keep production compose untouched and redirect
+  # ripper/mirror media paths to TEST_MUSIC_ROOT.
+  # Intentionally does NOT override LMS volumes.
+
+  ripper:
+    volumes:
+      - ${TEST_MUSIC_ROOT:-/home/rec/Music_test}:/out:rw
+
+  flac_mirror:
+    volumes:
+      - ${TEST_MUSIC_ROOT:-/home/rec/Music_test}/flac:/flac:ro
+      - ${TEST_MUSIC_ROOT:-/home/rec/Music_test}/mp3:/mp3:rw
+      - ${TEST_MUSIC_ROOT:-/home/rec/Music_test}/m4a:/m4a:rw
+      - ${TEST_MUSIC_ROOT:-/home/rec/Music_test}/ogg:/ogg:rw

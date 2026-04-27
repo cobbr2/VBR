@@ -11,6 +11,18 @@ import subprocess
 # Track files that have failed during this container's uptime
 FAILED_FILES = set()
 
+def try_copy_owner_mode(target_path, source_path, kind):
+    """Best-effort chmod/chown: warn and continue on permission issues."""
+    try:
+        st = os.stat(source_path)
+        os.chown(target_path, st.st_uid, st.st_gid)
+        os.chmod(target_path, st.st_mode & 0o777)
+    except PermissionError as exc:
+        print(f"!!! WARN: could not align {kind} ownership/mode for {target_path}: {exc}", file=sys.stderr, flush=True)
+    except FileNotFoundError:
+        # Source or target disappeared during processing; allow next scan loop to retry.
+        print(f"!!! WARN: skipped {kind} ownership/mode alignment because file vanished: {target_path}", file=sys.stderr, flush=True)
+
 def check_mirror_status(flac_file, mirror_format):
     # 1. Ignore Apple/System metadata immediately
     if os.path.basename(flac_file).startswith('._'):
@@ -30,8 +42,7 @@ def check_mirror_status(flac_file, mirror_format):
         if not os.path.isdir(mirror_dir_name):
             os.makedirs(mirror_dir_name, exist_ok=True)
             flac_file_dir = os.path.dirname(os.path.abspath(flac_file))
-            os.chown(mirror_dir_name, os.stat(flac_file_dir).st_uid, os.stat(flac_file_dir).st_gid)
-            os.chmod(mirror_dir_name, os.stat(flac_file_dir).st_mode & 0o777)
+            try_copy_owner_mode(mirror_dir_name, flac_file_dir, 'directory')
 
         mirror_command = ['/usr/bin/ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', flac_file]
         mirror_command = mirror_command + mirror_format['OPTIONS']
@@ -41,8 +52,7 @@ def check_mirror_status(flac_file, mirror_format):
 
         if result.returncode == 0:
             if os.path.isfile(mirror_file_name):
-                os.chown(mirror_file_name, os.stat(flac_file).st_uid, os.stat(flac_file).st_gid)
-                os.chmod(mirror_file_name, os.stat(flac_file).st_mode & 0o777)
+                try_copy_owner_mode(mirror_file_name, flac_file, 'file')
             print(f'Completed: {rel_name}', flush=True)
             return 'MIRRORED'
         else:
