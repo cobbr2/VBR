@@ -20,6 +20,8 @@
 
 - **Samba in Docker:** Containerized Samba (custom or mbentley image) currently fails with NT_STATUS_NO_SUCH_USER on tree connect (auth succeeds). Use **host Samba** with `host_samba/smb.conf` as the working approach until that is resolved. See `samba/README.md`.
 
+- **Cron hygiene:** `newsounds` currently has a `rec` crontab entry for `/home/rec/scripts/docker_cleanup.sh`, but that path/script does not exist. Treat this as stale until we either add a real script or remove the crontab line.
+
 - **Goals** 
     - Run "newsounds" as the primary LMS server / ripper / mirror on our network.
     - Also have it serve filesystems that allow editing the music collection.

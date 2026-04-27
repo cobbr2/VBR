@@ -75,13 +75,16 @@ services:
   # chowns ripped files to USER_ID:GROUP_ID (1000:1000 = rec on host) so Samba
   # and Mac clients (e.g. Picard) can read/write/delete without a separate chown.
   #
-  # The LMS_HOST (i.e the service name above) and LMS_PORT are 
+  # The LMS_HOST and LMS_PORT from above can be 
   # used by the ripper to be able to contact LMS and tell it 
   # to rescan the contents of /mnt/music so that the newly 
   # ripped files are detected and indexed.  If the server 
   # cannot be found, it silently times out and LMS won't know 
   # about the new files unless the use through the UI initiates
   # a rescan.
+  #
+  # OTOH: since our LMS_HOST is in "host" network_mode, the name
+  # "lms" won't find it. Thus the "extra_hosts" entry. 
   #
   ripper:
     restart: unless-stopped
@@ -97,6 +100,8 @@ services:
       - ${MUSIC_ROOT:-/home/rec/Music}:/out:rw
     devices:
       - "/dev/sr0:/dev/sr0"
+    extra_hosts:
+      - "lms:host-gateway"
       
 
   #

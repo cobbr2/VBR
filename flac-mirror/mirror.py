@@ -1,25 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-#
-# Mirror flac files to other formats.
-#
-# Files in FLAC_DIR are scanned to check if they have a 
-# corresponding mirrored version in the other format *_DIR 
-# directory.  If *_DIR is not set for a format then the FLAC_DIR
-# is used.
-#
-# Supported target formats are:
-#   OGG
-#   M4A
-#   MP3
-#
-# The selected formats to mirror are set with the environment 
-# variable MIRROR, e.g. MIRROR=MP3,OGG
-#
-# The ffmpeg conversation options can be over-ridden here to 
-# change the quality etc. e.g MP3_OPTIONS=....
-#
 from os import environ
 import os.path
 import sys
@@ -27,180 +8,108 @@ from os import walk
 import time
 import subprocess
 
-#
-# Check that the mirrored format exists for the flac file.  If
-# not use ffmpeg to create a version of the required format.
-#
-def check_mirror_status(flac_file, mirror_format):
-    #
-    # Get the relative name of the file, e.g. 
-    # ~/Music/flac/Artist-Album/01-track.flac -> Artist-Album/01-track
-    #
-    rel_name = os.path.relpath(flac_file,  flac_dir)[:-4]
+# Track files that have failed during this container's uptime
+FAILED_FILES = set()
 
-    print(f'Checking flac_file {flac_file} flac_dir {flac_dir} yields rel_name {rel_name}')
+def try_copy_owner_mode(target_path, source_path, kind):
+    """Best-effort chmod/chown: warn and continue on permission issues."""
+    try:
+        st = os.stat(source_path)
+        os.chown(target_path, st.st_uid, st.st_gid)
+        os.chmod(target_path, st.st_mode & 0o777)
+    except PermissionError as exc:
+        print(f"!!! WARN: could not align {kind} ownership/mode for {target_path}: {exc}", file=sys.stderr, flush=True)
+    except FileNotFoundError:
+        # Source or target disappeared during processing; allow next scan loop to retry.
+        print(f"!!! WARN: skipped {kind} ownership/mode alignment because file vanished: {target_path}", file=sys.stderr, flush=True)
+
+def check_mirror_status(flac_file, mirror_format):
+    # 1. Ignore Apple/System metadata immediately
+    if os.path.basename(flac_file).startswith('._'):
+        return 'IGNORED'
     
-    #
-    # Workout the target mirrored file name.  If it doesn't exist
-    # then make sure the target directory exists first.
-    #
-    # e.g Artist-Album/01-track -> ~/Music/mp3/Artist-Album/01-track.mp3
-    #
-    mirror_file_name = os.path.join(mirror_format['DIR'], "{}{}".format(rel_name, mirror_format['EXT'].lower()))
+    # 2. Check if we've already given up on this file this session
+    if flac_file in FAILED_FILES:
+        return 'PERSISTENT_ERROR'
+
+    rel_name = os.path.relpath(flac_file, flac_dir)[:-5]
+    mirror_file_name = os.path.join(mirror_format['DIR'], "{}.{}".format(rel_name, mirror_format['EXT'].lower()))
+    
     if not os.path.isfile(mirror_file_name):
-        print(f'mirroring to {mirror_file_name}')
+        print(f'Mirroring: {rel_name}.flac -> {mirror_format["EXT"]}', flush=True)
 
         mirror_dir_name = os.path.dirname(mirror_file_name)
         if not os.path.isdir(mirror_dir_name):
-            os.makedirs(mirror_dir_name)
-            # 
-            # set permissions of this new directory as per that of the directory that the flac file is in
-            #
+            os.makedirs(mirror_dir_name, exist_ok=True)
             flac_file_dir = os.path.dirname(os.path.abspath(flac_file))
-            os.chown(mirror_dir_name, os.stat(flac_file_dir).st_uid, os.stat(flac_file_dir).st_gid)
-            perms = os.stat(flac_file_dir).st_mode & 0o777
-            os.chmod(mirror_dir_name, perms)
-            
-        mirror_command = ['/usr/bin/ffmpeg', '-i', flac_file]
+            try_copy_owner_mode(mirror_dir_name, flac_file_dir, 'directory')
+
+        mirror_command = ['/usr/bin/ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', flac_file]
         mirror_command = mirror_command + mirror_format['OPTIONS']
         mirror_command.append(mirror_file_name)
-        #
-        # Convert the file, if there is an error then display
-        # stdout/stderr from the subprocess.
-        #
+        
         result = subprocess.run(mirror_command, capture_output=True)
-        if os.path.isfile(mirror_file_name):
-            #
-            # Set the permissions of the newly mirrored file to be the same as the 
-            # flac file.
-            #
-            os.chown(mirror_file_name, os.stat(flac_file).st_uid, os.stat(flac_file).st_gid)
-            perms = os.stat(flac_file).st_mode & 0o777
-            os.chmod(mirror_file_name, perms)
 
         if result.returncode == 0:
-            print ("Created {}".format(mirror_file_name))
+            if os.path.isfile(mirror_file_name):
+                try_copy_owner_mode(mirror_file_name, flac_file, 'file')
+            print(f'Completed: {rel_name}', flush=True)
             return 'MIRRORED'
         else:
-            print ("Error creating {}".format(mirror_file_name), file=sys.stderr)
-            print (result.stdout)
-            print (result.stderr, file=sys.stderr)
-            return 'ERROR'
+            # LOUD LOGGING for actual failures
+            print(f"!!! ERROR: Failed to transcode {flac_file}", file=sys.stderr, flush=True)
+            if result.stderr:
+                print(f"!!! FFMPEG STDERR: {result.stderr.decode()}", file=sys.stderr, flush=True)
             
-    else:
-        return 'EXISTS'
+            FAILED_FILES.add(flac_file)
+            return 'ERROR'
 
-#
-# Scan the FLAC_DIR looking for flac files to mirror.
-#
+    return 'EXISTS'
+
 def scan_flac_dir():
-    print("Scanning {}".format(flac_dir))
-    counts = {'FLAC':0}
+    counts = {'FLAC': 0}
     start_time = time.time()
     for (dirpath, dirnames, filenames) in walk(flac_dir):
+        dirnames[:] = [d for d in dirnames if not d.startswith('.')]
         for f in filenames:
-            if f.endswith('.flac'):
+            if f.endswith('.flac') and not f.startswith('._'):
                 counts['FLAC'] += 1
                 flac_file = os.path.join(dirpath, f)
-                
+
                 for mirror_format in mirror_formats:
                     rc = check_mirror_status(flac_file, format_options[mirror_format])
-                    cc = "{}_{}".format(mirror_format, rc)
-                    if cc not in counts:
-                        counts[cc] = 0
-                    counts[cc] += 1
-    print ("    Scanned {} flac files in {:6.3f} seconds".format(counts['FLAC'], time.time() - start_time))
-    for mirror_format in mirror_formats:
-        print ("    {} : {}".format(mirror_format, format_options[mirror_format]['DIR']))
-        for c in ['MIRRORED', 'ERROR', 'EXISTS']:
-            print ("        {:<8} : {}".format(c, counts.get("{}_{}".format(mirror_format, c), 0)))
+                    cc = f"{mirror_format}_{rc}"
+                    counts[cc] = counts.get(cc, 0) + 1
 
+    # Format the task summary
+    tasks = []
+    for m in mirror_formats:
+        new = counts.get(f"{m}_MIRRORED", 0)
+        err = counts.get(f"{m}_ERROR", 0)
+        tasks.append(f"{m}: {new} new, {err} fail")
 
-
-
+    # Final heartbeat line
+    log_msg = f"Heartbeat: {counts['FLAC']} total FLACs | {len(FAILED_FILES)} skipped (errors) | {', '.join(tasks)}"
+    print(log_msg, flush=True)
 
 if __name__ == "__main__":
-    print("Environment:")
-    print(environ)
-    #
-    # Check what, if any formats are required to be mirrored
-    #
-    mirror_formats = environ.get('MIRROR', '').strip().split(',')
-    if mirror_formats[0] == '':
-        mirror_formats.pop()
-    if len(mirror_formats) == 0:
-        print ("No formats to mirror to specified - nothing to do", flush=True)
-        sys.exit(1)
-        
-    #
-    # Check flac dir is good, can't do much if it isn't set
-    #
+    mirror_formats = [m for m in environ.get('MIRROR', '').strip().split(',') if m]
     flac_dir = environ.get('FLAC_DIR', '/flac')
-    if not os.path.isdir(flac_dir):
-        print("FLAC_DIR '{}' is not an accessible directory".format(flac_dir), file=sys.stderr)
-        sys.exit(1)
-
-
-    #
-    # Default options
-    #
+    
     format_options = {
-        'M4A': {
-            'OPTIONS':'-c:a aac -b:a 192k -vn', 
-            'DIR': '/m4a',
-            'EXT': 'm4a'
-              
-            },
-        'MP3': { 
-            'OPTIONS':'-c:a mp3 -ab 192k -map_metadata 0', 
-            'DIR':'/mp3',
-            'EXT':'mp3'
-            },
-        'OGG': { 
-            'OPTIONS':'-c:a libvorbis',
-            'DIR': '/ogg',
-            'EXT':'ogg'
-            }
-        }
+        'M4A': {'OPTIONS':'-c:a aac -b:a 192k -vn', 'DIR': '/m4a', 'EXT': 'm4a'},
+        'MP3': {'OPTIONS':'-c:a mp3 -ab 192k -map_metadata 0', 'DIR':'/mp3', 'EXT':'mp3'},
+        'OGG': {'OPTIONS':'-c:a libvorbis', 'DIR': '/ogg', 'EXT':'ogg'}
+    }
 
-    #
-    # See if anything has been over-ridden with environment variables
-    #
-    for fmat in format_options:
-        ev = "{}_DIR".format(fmat)
-        if ev in os.environ:
-            ed = environ.get(ev) 
-            if not os.path.isdir(ed):
-                print("{}={} is not an accessible directory".format(ev, ed), file=sys.stderr, flush=True)
-            else:
-                format_options[fmat]['DIR'] = environ.get(ev) 
-        eo = "{}_OPTIONS".format(fmat)
-        if eo in os.environ:
-            format_options[fmat]['OPTIONS'] = environ.get(eo) 
-        format_options[fmat]['OPTIONS'] = format_options[fmat]['OPTIONS'].split(' ')
-    
-    #
-    # Print the config
-    #
-    print ("flac-mirror")
-    for fmat in format_options:
-        if fmat not in mirror_formats:
-            print ("    {} - not enabled".format(fmat))
-        else:
-            print ("    {}".format(fmat))
-            print ("         DIR : {}".format(format_options[fmat]["DIR"]))
-            print ("         EXT : {}".format(format_options[fmat]["EXT"]))
-            print ("         OPTIONS : {}".format(format_options[fmat]["OPTIONS"]))
-    print(flush=True)        
-    
-            
-    #
-    # Scan the flac dir looking for work.  Wait a minute before scanning again.
-    #
-    sleep_time = 60
-    while (True):
-        if len(mirror_formats) == 0:
-            break
+    for fmat in mirror_formats:
+        if fmat in format_options:
+            ev_dir, ev_opt = f"{fmat}_DIR", f"{fmat}_OPTIONS"
+            if ev_dir in environ: format_options[fmat]['DIR'] = environ[ev_dir]
+            if ev_opt in environ: format_options[fmat]['OPTIONS'] = environ[ev_opt]
+            format_options[fmat]['OPTIONS'] = format_options[fmat]['OPTIONS'].split()
+
+    print(f"flac-mirror logic updated. Persistent errors will be logged with '!!!'.", flush=True)
+    while True:
         scan_flac_dir()
-        print ("Sleeping for {} seconds before re-scanning".format(sleep_time), flush=True)
-        time.sleep(sleep_time)
+        time.sleep(60)
