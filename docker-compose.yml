@@ -29,9 +29,9 @@ services:
       # can configure LMS to only pay attention to flac if there's a pair...
       # how does it decide on equivalence?
       #
-      - /home/${USER}/Music:/mnt/music:ro
-      - /home/${USER}/Music/playlists:/mnt/playlists
-      - /home/${USER}/Music/state:/mnt/state
+      - ${MUSIC_ROOT:-/home/rec/Music}:/mnt/music:ro
+      - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/mnt/playlists
+      - ${MUSIC_ROOT:-/home/rec/Music}/state:/mnt/state
       
       
   #
@@ -66,7 +66,7 @@ services:
   # inserted audio disks.
   #
   # The ripper's /out directory is mapped to the same directory
-  # that LMS looks in for media, i.e. /home/${USER}/Music
+  # that LMS looks in for media, i.e. ${MUSIC_ROOT:-/home/rec/Music}
   #
   # Note, need to give the ripper container access to the
   # CDROM device and then tell it what device to use.
@@ -94,37 +94,16 @@ services:
       - LMS_HOST=lms
       - LMS_CLI_PORT=9090
     volumes:
-      - /home/${USER}/Music:/out:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}:/out:rw
     devices:
       - "/dev/sr0:/dev/sr0"
       
 
   #
-  # Mirror flac files to the spcified formats.
+  # Mirror flac files to the specified formats.
   #
   # Periodically scans the /flac directory for flac
   # files that don't exist in the target format directories.
-  #
-  #
-  # Samba: Music share for Mac/Windows clients (e.g. Picard). Uses same
-  # Music dir as LMS/ripper; force user 1000 so files are owned by rec on host.
-  #
-  samba:
-    restart: unless-stopped
-    build:
-      context: ./samba
-    ports:
-      - "139:139"
-      - "445:445"
-      - "137:137/udp"
-      - "138:138/udp"
-    volumes:
-      - /home/${USER}/Music:/music:rw
-    # Optional: match hostname so SMB appears as same host as LMS
-    hostname: newsounds
-
-  #
-  # Mirror flac files to the spcified formats.
   #
   flac_mirror:
     restart: unless-stopped
@@ -153,10 +132,10 @@ services:
       # - MP3_OPTIONS=-c:a mp3 -ab 192k -map_metadata 0
       # - OGG_OPTIONS=-c:a libvorbis
     volumes:
-      - /home/${USER}/Music/flac:/flac:ro
-      - /home/${USER}/Music/mp3:/mp3:rw
-      - /home/${USER}/Music/m4a:/m4a:rw
-      - /home/${USER}/Music/ogg:/ogg:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}/flac:/flac:ro
+      - ${MUSIC_ROOT:-/home/rec/Music}/mp3:/mp3:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}/m4a:/m4a:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}/ogg:/ogg:rw
   #
   # Samba: Music share for Mac/Windows clients (e.g. Picard). Uses same
   # Music dir as LMS/ripper; force user 1000 so files are owned by rec on host.
@@ -178,7 +157,7 @@ services:
   #     - ACCOUNT_nobody=65534:guest
   #   volumes:
   #     - ./samba/smb.conf:/etc/samba/smb.conf:ro
-  #     - /home/${USER}/Music:/music:rw
+  #     - ${MUSIC_ROOT:-/home/rec/Music}:/music:rw
   #   tmpfs:
   #     - /run/samba
   #   hostname: newsounds
