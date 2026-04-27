@@ -4,7 +4,15 @@
 
 - **Where we run things:** We do **not** run the stack locally. We keep the source here and use **newsounds for all testing** (deploy there, run `docker compose` there, verify there).
 
-- **Workflow:** We keep the source in this repo and make changes via **GitHub pushes and branches**. When we start a new effort (e.g. a bug fix or feature), we start a new branch for it. Once it works on newsounds, we merge to master.
+- **Workflow:** We keep the source in this repo and make changes via **GitHub pushes and branches**. When we start a new effort (e.g. a bug fix or feature), we start a **new branch** for it. When it works on newsounds, we **merge into `master` via a pull request** on GitHub (do not push directly to `master`; it is branch-protected).
+
+- **Repository:** The canonical remote is **`origin`** (`cobbr2/VBR`). That is our fork’s `master`, not “someone else’s” upstream; changes land on our `master` through PRs here. If we add an `upstream` remote later, treat it as read-only unless we intend to contribute back.
+
+- **Branch discipline**
+    - **Naming:** Prefer `issue/<short-slug>` for bug fixes and targeted work, `feature/<short-slug>` for larger features (e.g. `issue/lms-loses-state`). Keep slugs short and stable.
+    - **One branch per effort** so history and review stay clear. Push the branch to `origin`, open a PR into `master`, merge on GitHub when done.
+    - **Why there are many branches:** Past work (Samba experiments, permissions, sync-file issues, etc.) each got its own branch; that is normal. **After a PR is merged**, delete the branch on GitHub and remove the local copy (`git branch -d <branch>`) so the list stays manageable. Branches that were abandoned without merging can stay until we either finish them or delete them deliberately.
+    - **Optional cleanup:** Periodically `git fetch --prune origin` and review `git branch -a` for stale names.
 
 - **Target client:** The Mac we need to connect is the highest priority: **rick-laptop24**. It runs Tahoe 26.3.1 and is M2-based.
 
