@@ -1,17 +1,22 @@
 version: '3'
 services:
   #
-  # The LMS server that provides the familar UI on port 9000,
-  # and the cli on port 9090.  3483 is the SlimProt and 1900
-  # is the UPnP/Discovery mechanism.
+  # Lyrion Music Server 9.x (community image). Paths in-container are
+  # /config, /music, /playlist — same host tree as before: state → /config,
+  # MUSIC_ROOT → /music, playlists → /playlist.
   #
-  # The first time this is accessed, it will need to be 
-  # configured for the locations of the music and playlists.
+  # Ports 9000 (HTTP), 9090 (CLI), 3483 (SlimProto), 1900 (UPnP) — map 1:1.
   #
   lms:
     restart: unless-stopped
-    image: justifiably/logitechmediaserver
+    image: lmscommunity/lyrionmusicserver:stable
     hostname: newsounds
+    environment:
+      - HTTP_PORT=9000
+      - PUID=1000
+      - PGID=1000
+      # Bridge networking: players/plugins need the LAN address SlimProto advertises.
+      - EXTRA_ARGS=--advertiseaddr=192.168.222.6
     ports:
       - "9000:9000"
       - "9090:9090"
@@ -19,19 +24,15 @@ services:
       - "3483:3483/udp"
       - "1900:1900"
     volumes:
-      #
-      # Use the music files stored in the users Music 
-      # directory. Keep all the other related files in there 
-      # too.  
-      #
-      # For later: should we mount only flac? Or rely on LMS config to only
-      # use flac? How to handle crap we only have in MP3? IIRC, we already
-      # can configure LMS to only pay attention to flac if there's a pair...
-      # how does it decide on equivalence?
-      #
+      - ${MUSIC_ROOT:-/home/rec/Music}/state:/config:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}:/music:ro
+      - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/playlist:rw
+      # Prefs and DB from 8.x still reference /mnt/{state,music,playlists}; bind the same host dirs.
+      - ${MUSIC_ROOT:-/home/rec/Music}/state:/mnt/state:rw
       - ${MUSIC_ROOT:-/home/rec/Music}:/mnt/music:ro
-      - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/mnt/playlists
-      - ${MUSIC_ROOT:-/home/rec/Music}/state:/mnt/state
+      - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/mnt/playlists:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
       
       
   #
