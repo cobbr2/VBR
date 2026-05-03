@@ -50,12 +50,13 @@ Use one already-ripped, known-good CD.
 
 ## 6) Non-regression checks for LMS state safety
 
-These checks guard against collateral LMS regressions while testing ripper/mirror.
+These checks guard against collateral LMS regressions while testing ripper/mirror. For a full, repeatable checklist (track count nuance, `extensions.prefs`, Spotty files), use **`docs/lms-restart-checks.md`**.
 
-- [ ] LMS mounts still point to production music/state (`/home/rec/Music...`).
+- [ ] LMS mounts still point to production music/state (`${MUSIC_ROOT:-/home/rec/Music}...`).
 - [ ] Favorites count/list unchanged from baseline.
-- [ ] Library DB counts unchanged unless intentionally rescanned.
-- [ ] Plugin prefs count unchanged.
+- [ ] **Library:** compare `SELECT COUNT(*) FROM tracks WHERE audio=1` (primary music count), not only raw `tracks` total — the total can differ by 1 if an edge row (`audio IS NULL`) moves; see `lms-restart-checks.md`.
+- [ ] Plugin prefs file count unchanged; `extensions.prefs` still lists expected enabled plugins.
+- [ ] (Optional) `spotty.prefs` size/checksum if you care about on-disk Spotty config (auth may still need UI re-login after major changes).
 
 ## 7) Exit / cleanup
 
