@@ -27,6 +27,10 @@ services:
       - ${MUSIC_ROOT:-/home/rec/Music}/state:/config:rw
       - ${MUSIC_ROOT:-/home/rec/Music}:/music:ro
       - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/playlist:rw
+      # Prefs and DB from 8.x still reference /mnt/{state,music,playlists}; bind the same host dirs.
+      - ${MUSIC_ROOT:-/home/rec/Music}/state:/mnt/state:rw
+      - ${MUSIC_ROOT:-/home/rec/Music}:/mnt/music:ro
+      - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/mnt/playlists:rw
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
       
