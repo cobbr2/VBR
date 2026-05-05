@@ -15,7 +15,7 @@ services:
       - HTTP_PORT=9000
       - PUID=1000
       - PGID=1000
-      # Bridge networking: players/plugins need the LAN address SlimProto advertises.
+      # Advertise SlimProto on LAN: players/plugins need the LAN address SlimProto advertises.
       - EXTRA_ARGS=--advertiseaddr=192.168.222.6
     ports:
       - "9000:9000"
@@ -33,6 +33,11 @@ services:
       - ${MUSIC_ROOT:-/home/rec/Music}/playlists:/mnt/playlists:rw
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+      # Patched LMS core - see patches/lms/PROVENANCE.txt (rebase on image upgrade).
+      # OVERLAY OFF 2026-05-05: stock LMS test — - ./patches/lms/TranscodingHelper.pm:/lms/Slim/Player/TranscodingHelper.pm:ro
+      # LMS Bin path for lame (see patches/lms/PROVENANCE.txt)
+      - ./patches/lms/lame-wrapper:/lms/Bin/x86_64-linux/lame:ro
+      # OVERLAY OFF 2026-05-05: stock LMS test — - ./patches/lms/Song.pm:/lms/Slim/Player/Song.pm:ro
       
       
   #

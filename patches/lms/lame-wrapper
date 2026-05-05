@@ -1,0 +1,3 @@
+#!/bin/sh
+# LMS Spotty transcode expects lame at /lms/Bin/x86_64-linux/lame; image only has /usr/bin/lame.
+exec /usr/bin/lame "$@"
