@@ -1,0 +1,70 @@
+LMS core overlay - tokenizeConvertCommand2 pipe guard
+======================================================
+
+Purpose
+-------
+Transcoder commands that already contain a shell pipe (e.g. Spotty spotty | lame)
+must not receive LMS appending " & |" when $noPipe is unset. Append only when the
+command has no internal "|"; otherwise playback stays silent.
+
+Tracked file
+------------
+Host:    patches/lms/TranscodingHelper.pm (bind-mount over container path)
+Mount:   ./patches/lms/TranscodingHelper.pm -> /lms/Slim/Player/TranscodingHelper.pm
+
+Baseline when this overlay was created
+--------------------------------------
+Image:     lmscommunity/lyrionmusicserver:stable
+Image ID:  sha256:c1099ea73717abd82d0e85aa4d7451717a36a3b2a4b9718ef139c8ce129f4508
+
+Code change (conditional only)
+------------------------------
+In tokenizeConvertCommand2, guard the existing suffix append:
+
+    if (!defined($noPipe) && $command !~ m!\|!) {
+        $command .= (main::ISWINDOWS) ? "" : " &";
+        $command .= " |";
+    }
+
+Upstream
+--------
+Candidate bugfix for Lyrion Music Server (attach unified diff + Spotty spt->mp3 repro).
+
+After docker compose pull / image upgrade
+-----------------------------------------
+1. docker cp vbr-lms-1:/lms/Slim/Player/TranscodingHelper.pm /tmp/TranscodingHelper.pm.new
+2. diff -u ~/VBR/patches/lms/TranscodingHelper.pm /tmp/TranscodingHelper.pm.new
+3. Merge if upstream touched the same lines; replace patched file and update Image ID above.
+
+Optional: lame search path
+--------------------------
+The community image may lack /lms/Bin/x86_64-linux/lame (system lame is /usr/bin/lame).
+After container recreate, Spotty MP3 may need:
+  docker exec vbr-lms-1 ln -sf /usr/bin/lame /lms/Bin/x86_64-linux/lame
+Or bake the symlink into a small entrypoint wrapper alongside this mount.
+
+Bind-mount lame wrapper
+----------------------
+Host file patches/lms/lame-wrapper is mounted read-only at
+/lms/Bin/x86_64-linux/lame so Spotty spt->mp3 can resolve [lame] without a
+container-local symlink that disappears on recreate.
+
+Song.pm overlay
+--------------
+Force Pipeline (IPC::Open2) when transcoder command contains | so multi-stage
+Spotty (spotty|lame|...) uses Pipeline instead of FileHandle->new (ENOENT).
+Mount: ./patches/lms/Song.pm -> /lms/Slim/Player/Song.pm
+
+Docker: LMS network_mode host (newsounds VBR)
+----------------------------------------
+As of 2026-05-04, lms service uses network_mode: host; port mappings
+removed. Same image and EXTRA_ARGS=--advertiseaddr=192.168.222.6.
+Revert: restore ports: block and remove network_mode: host for bridge A/B.
+
+# 2026-05-04: LMS Docker networking reverted from host mode to bridge (published ports 9000/9090/3483/1900); identical Spotty symptom either way.
+
+# 2026-05-06: Spotify playback confirmed with older Premium account (Spotty hash 5855a501 on Office player b8:27:eb:2c:c1:7a; prior hash 2c2f282d class showed metadata OK but no audio). LMS overlays (TranscodingHelper.pm, Song.pm, lame-wrapper) left in place pending optional stock-image regression test.
+
+# 2026-05-05: LMS overlay regression test — commented out TranscodingHelper.pm and Song.pm bind-mounts only; lame-wrapper retained (image lacks /lms/Bin/x86_64-linux/lame, only /usr/bin/lame exists). Undo: uncomment two volume lines in docker-compose.yml, docker compose up -d lms.
+
+# 2026-05-05: Post-restart Spotty re-auth required (spotty.db rebuild / __AUTHENTICATE__ cleanup). After clean OAuth: discovery + playback OK with TranscodingHelper+Song overlays OFF; lame-wrapper mount retained.
