@@ -5,24 +5,21 @@ services:
   # /config, /music, /playlist — same host tree as before: state → /config,
   # MUSIC_ROOT → /music, playlists → /playlist.
   #
-  # Ports 9000 (HTTP), 9090 (CLI), 3483 (SlimProto), 1900 (UPnP) — map 1:1.
+  # network_mode: host — binds 9000/9090/3483/1900 on the host and exposes
+  # mDNS (UDP 5353) on the LAN. Required for Spotty 4.62+ "Authorise Playback"
+  # (Spotify app must discover "Spotify Authorization (newsounds)" via Zeroconf).
   #
   lms:
     restart: unless-stopped
     image: lmscommunity/lyrionmusicserver:stable
     hostname: newsounds
+    network_mode: host
     environment:
       - HTTP_PORT=9000
       - PUID=1000
       - PGID=1000
       # Advertise SlimProto on LAN: players/plugins need the LAN address SlimProto advertises.
       - EXTRA_ARGS=--advertiseaddr=192.168.222.6
-    ports:
-      - "9000:9000"
-      - "9090:9090"
-      - "3483:3483"
-      - "3483:3483/udp"
-      - "1900:1900"
     volumes:
       - ${MUSIC_ROOT:-/home/rec/Music}/state:/config:rw
       - ${MUSIC_ROOT:-/home/rec/Music}:/music:ro
